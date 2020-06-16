@@ -21,11 +21,11 @@ class COVIDxDataset(Dataset):
         self.CLASSES = n_classes
         self.dim = dim
         self.COVIDxDICT = {'pneumonia': 0, 'normal': 1, 'COVID-19': 2}
-        testfile = './test_split_v2.txt'
-        trainfile = './train_split_v2.txt'
+        testfile = '../datasets/covid_x_dataset/test_split_v2.txt'
+        trainfile = '../datasets/covid_x_dataset/train_split_v2.txt'
         if (mode == 'train'):
             self.paths, self.labels = read_filepaths(trainfile)
-        elif (mode == 'test'):
+        elif (mode == 'val'):
             self.paths, self.labels = read_filepaths(testfile)
         print("{} examples =  {}".format(mode, len(self.paths)))
         self.mode = mode

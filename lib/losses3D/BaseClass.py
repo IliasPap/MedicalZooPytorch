@@ -12,11 +12,12 @@ class _AbstractDiceLoss(nn.Module):
     Base class for different implementations of Dice loss.
     """
 
-    def __init__(self, weight=None, sigmoid_normalization=True):
+    def __init__(self, weight=None, sigmoid_normalization=False,skip_background_class=True):
         super(_AbstractDiceLoss, self).__init__()
         self.register_buffer('weight', weight)
         self.classes = None
         self.skip_index_after = None
+        self.skip_background_class = skip_background_class
         # The output from the network during training is assumed to be un-normalized probabilities and we would
         # like to normalize the logits. Since Dice (or soft Dice in this case) is usually used for binary data,
         # normalizing the channels with Sigmoid is the default choice even for multi-class segmentation problems.
@@ -37,24 +38,35 @@ class _AbstractDiceLoss(nn.Module):
         """
         assert index >= 2
         return target[:, 0:index, ...]
+    def skip_class(self,target,index=0):
+
+        return target[:,index:,...]
+
 
     def forward(self, input, target):
         """
         Expand to one hot added extra for consistency reasons
         """
         target = expand_as_one_hot(target.long(), self.classes)
+        if self.skip_background_class:
+            target = self.skip_class(target)
+            input = self.skip_class(input)
 
-        assert input.dim() == target.dim() == 5 ,"'input' and 'target' have different number of dims"
+        assert input.dim() == target.dim() == 5, "'input' and 'target' have different number of dims"
 
         if self.skip_index_after is not None:
+            before_size = target.size()
             target = self.skip_target_channels(target, self.skip_index_after)
-        # print(input.size(),target.size())
+            print("Target {} after skip index {}".format(before_size, target.size()))
+
         assert input.size() == target.size(), "'input' and 'target' must have the same shape"
         # get probabilities from logits
         input = self.normalization(input)
 
         # compute per channel Dice coefficient
         per_channel_dice = self.dice(input, target, weight=self.weight)
+        if self.skip_background_class:
+            per_channel_dice = per_channel_dice[1:]
         loss = (1. - torch.mean(per_channel_dice))
         per_channel_dice = per_channel_dice.detach().cpu().numpy()
 
